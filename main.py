@@ -83,19 +83,23 @@ def fixCalculatedAmountForFZGZ(row):
         return None  # Return None for invalid entries
 
 def getCurrentDatesFromFilename(file_datum):
-    # Calculate the current week of the year from the filename
-    file_year = int(file_datum[:4])
-    file_month = int(file_datum[4:6])
-    file_day = int(file_datum[6:])
-    # Calculate iso-calender datum with these infos from the filename
-    return file_year,file_month,file_day
+    try: 
+        # Calculate the current week of the year from the filename
+        file_year = int(file_datum[:4])
+        file_month = int(file_datum[4:6])
+        file_day = int(file_datum[6:])
+        # Calculate iso-calender datum with these infos from the filename
+        return file_year,file_month,file_day
+    except: 
+        date_input = st.date_input(label="Input the first date of you timesheet")
+        return date_input.year,date_input.month,1
 
 # Use global information from the file to get the week_number
 def calculateWeekNumFromWeekday(entry):
-    source_name = entry.iloc[2].strip(".pdf") # second entry is source filename
-    date_infos = getCurrentDatesFromFilename(source_name)
-    day = int(entry.iloc[0])
-    entry.iloc[1] = datetime.date(date_infos[0], date_infos[1],day).isocalendar().week
+
+    date = datetime.date(entry.loc['year'],entry.loc['month'],entry.loc['daynumber'])
+
+    entry.loc['weeknum'] = date.isocalendar().week
     return entry
 
 def convert24hoursToTimeObject(obj):
@@ -159,12 +163,15 @@ def generalDataFrameCleanup(timetable):
     # We fill in the daynumber of the specialdays by using the daynumber in the row before +1
     timetable = fill_special_days(timetable)
 
-    # Calculate the week number of the year based on the daynum in the table
-    timetable[['daynumber','weeknum',"source"]] = timetable[['daynumber','weeknum','source']].apply(calculateWeekNumFromWeekday,axis=1)
-
     # Set the year for all weeks
     date_infos = getCurrentDatesFromFilename(timetable['source'].iloc[0].strip(".pdf"))
     timetable["year"] = date_infos[0]
+    timetable["month"] = date_infos[1]
+
+    # Calculate the week number of the year based on the daynum in the table
+    timetable[['daynumber','weeknum',"year",'month']] = timetable[['daynumber','weeknum',"year",'month']].apply(calculateWeekNumFromWeekday,axis=1)
+
+
 
     # Fill NaN Columns of Type of Work with Büro
      # Parse GLZ and calculated numbers into integers
@@ -185,15 +192,29 @@ def performeDataAnalysis(yearly_timetable):
     st.subheader("Let's take a look at your work! ")
     st.text("This is how much you worked in each week. That's a lot")
     hours_worked_each_week = yearly_timetable.groupby("weeknum")[['calculated_amount']].sum()
-    st.bar_chart(hours_worked_each_week)
-
-
+    
+    # Input Streamlit sliders for general info
     hourly_rate_in_eur = st.slider(
         "Your Hourly rate in €?", value=40
     )
     weekly_work_hours_baseline = st.slider(
         "How many hours do you work in a week?", value=16
     )
+    weekly_work_hours_capped = st.slider(
+        "At how many hours is your work week capped?", value=20
+    )
+
+    # Create custom bar chart. 
+    st.bar_chart(hours_worked_each_week)    
+    
+    # Filter weeks that exceed the cap
+    over_cap_weeks = hours_worked_each_week[hours_worked_each_week['calculated_amount'] > weekly_work_hours_capped]
+
+    if over_cap_weeks.empty:
+        st.write(f"Great! You did not work more weeks than your weekly hours cap of {weekly_work_hours_capped}")
+    else:
+        for week_num, hours in over_cap_weeks.iterrows():
+            st.write(f"⚠️ Week {week_num}: You worked {hours['calculated_amount']:.1f} hours, exceeding your {weekly_work_hours_capped} hour cap")
 
     st.subheader("Your work in numbers:")
     st.text(f"Have you ever wonderd how many netflix shows you could have watched at work? How many basejumps could have been bought if all your money went to them (after tax)? Did you work your required {weekly_work_hours_baseline} hours?")
