@@ -191,7 +191,7 @@ def performeDataAnalysis(yearly_timetable):
 
     st.subheader("Let's take a look at your work! ")
     st.text("This is how much you worked in each week. That's a lot")
-    hours_worked_each_week = yearly_timetable.groupby("weeknum")[['calculated_amount']].sum()
+    hours_worked_each_week = yearly_timetable_without_fzgz.groupby("weeknum")[['calculated_amount']].sum()
     
     # Input Streamlit sliders for general info
     hourly_rate_in_eur = st.slider(
@@ -222,7 +222,7 @@ def performeDataAnalysis(yearly_timetable):
 
 
     # Total Hours Worked
-    total_hours_worked = yearly_timetable["calculated_amount"].sum()
+    total_hours_worked = yearly_timetable_without_fzgz["calculated_amount"].sum()
     netflix_epsiode_in_hours = 0.75 * 10 # 45min * 10 episodes
 
     total_col1.metric(
@@ -246,8 +246,8 @@ def performeDataAnalysis(yearly_timetable):
 
 
     # You gave X % percent this month (based on a weekly_work_hours_baseline work week)
-    amount_of_weeks_worked = len(yearly_timetable["weeknum"].unique())
-    percent_given = yearly_timetable["calculated_amount"].sum() / (weekly_work_hours_baseline * amount_of_weeks_worked)
+    amount_of_weeks_worked = len(yearly_timetable_without_fzgz["weeknum"].unique())
+    percent_given = yearly_timetable_without_fzgz["calculated_amount"].sum() / (weekly_work_hours_baseline * amount_of_weeks_worked)
 
     # print(f"Based on a {weekly_work_hours_baseline} hour work-week, you have worked {percent_given*100}% of that time in the analysed timespan!")
 
@@ -260,7 +260,7 @@ def performeDataAnalysis(yearly_timetable):
     # Overtime Champion: How many extra hours did you give to the office this year? Are you eligible for an overtime hall of fame? 🏆
     st.divider()
     st.subheader("Are you the overtime champion?")
-    overtime_worked = yearly_timetable["calculated_amount"].sum() - (weekly_work_hours_baseline * amount_of_weeks_worked)
+    overtime_worked = yearly_timetable_without_fzgz["calculated_amount"].sum() - (weekly_work_hours_baseline * amount_of_weeks_worked)
     if overtime_worked > 0:
         st.text(f"You gave a total of {round(overtime_worked,1)} hours of overtime to the office")
     else:
@@ -275,7 +275,7 @@ def performeDataAnalysis(yearly_timetable):
         return td.days, td.seconds//3600, (td.seconds//60)%60
 
     # Create a filtered list of timedeltas without NaT values
-    timedeltas = filter(lambda x: str(x) != 'NaT', list(yearly_timetable.apply(calculateTimeDeltaForTimes,axis=1)))
+    timedeltas = filter(lambda x: str(x) != 'NaT', list(yearly_timetable_without_fzgz.apply(calculateTimeDeltaForTimes,axis=1)))
     timedeltas = list(timedeltas)
 
 
@@ -300,7 +300,7 @@ def performeDataAnalysis(yearly_timetable):
     germany_average_worked_hours_per_week = 16 # are you over 40hours in most weeks?
 
     # Calculate the hours per week of the data
-    hours_worked_each_week = yearly_timetable.groupby("weeknum")[['calculated_amount']].sum()
+    hours_worked_each_week = yearly_timetable_without_fzgz.groupby("weeknum")[['calculated_amount']].sum()
     overworked_hours = hours_worked_each_week[hours_worked_each_week > germany_average_worked_hours_per_week].count()
 
     if overworked_hours["calculated_amount"] > 3:
@@ -322,7 +322,7 @@ def performeDataAnalysis(yearly_timetable):
             print("All your weeks are the same. No highlights here :-(")
 
     # "Peak Rage Quit Hour" 😡 At what time were you most likely to log off in frustration? Should we start a support group for the 3:57 PM Ragers?
-    yearly_timetable['end_time'].describe()
+    yearly_timetable_without_fzgz['end_time'].describe()
 
     df_leaving_times = pandas.DataFrame()
     df_leaving_times['hour'] = yearly_timetable_without_fzgz['end_time'].dt.hour
@@ -382,7 +382,7 @@ def performeDataAnalysis(yearly_timetable):
     # You took 4 days off in one go—are you a master of strategic leave planning, or did you just really need a break?
 
     df_vaction_calc = pandas.DataFrame()
-    df_vaction_calc["is_urlaub"] = yearly_timetable["type"] == "Urlaub"
+    df_vaction_calc["is_urlaub"] = yearly_timetable_without_fzgz["type"] == "Urlaub"
 
     # Identify consecutive sequences using cumsum on changes
     df_vaction_calc["group"] = (df_vaction_calc["is_urlaub"] != df_vaction_calc["is_urlaub"].shift()).cumsum()
@@ -403,15 +403,15 @@ def performeDataAnalysis(yearly_timetable):
 
 
     # This was your favorite time of time entry (e.g type filtering)
-    favorite_type_count = yearly_timetable['type'].value_counts()
+    favorite_type_count = yearly_timetable_without_fzgz['type'].value_counts()
     st.bar_chart(favorite_type_count)
 
     # Define holiday types
     holiday_types = ["Urlaub", "FZ-Ausgl. GLZ/AZV"]
 
     # Filter for Friday and Monday rows where the user was on holiday.
-    fridays = yearly_timetable[(yearly_timetable["weekday"] == "Fr") & (yearly_timetable["type"].isin(holiday_types))].copy()
-    mondays = yearly_timetable[(yearly_timetable["weekday"] == "Mo") & (yearly_timetable["type"].isin(holiday_types))].copy()
+    fridays = yearly_timetable_without_fzgz[(yearly_timetable_without_fzgz["weekday"] == "Fr") & (yearly_timetable_without_fzgz["type"].isin(holiday_types))].copy()
+    mondays = yearly_timetable_without_fzgz[(yearly_timetable_without_fzgz["weekday"] == "Mo") & (yearly_timetable_without_fzgz["type"].isin(holiday_types))].copy()
 
     # For Monday rows, calculate the previous week number.
     mondays["prev_weeknum"] = mondays["weeknum"] - 1
@@ -454,7 +454,7 @@ def performeDataAnalysis(yearly_timetable):
         st.text(f"📊GLZ_Saldo: 0.00. You never achieved a week without overtime? Try to spend some time with your family")
 
     # Count occurrences of each unique combination
-    combination_counts = yearly_timetable.groupby(["start_time", "end_time", "type"]).size().reset_index(name="count")
+    combination_counts = yearly_timetable_without_fzgz.groupby(["start_time", "end_time", "type"]).size().reset_index(name="count")
 
     # Identify rarest combinations (outliers)
     outliers = combination_counts[combination_counts["count"] == 1]  # Appears only once
