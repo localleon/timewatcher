@@ -167,9 +167,7 @@ def generalDataFrameCleanup(timetable):
     timetable["year"] = date_infos[0]
 
     # Fill NaN Columns of Type of Work with Büro
-    timetable = timetable.assign(type=timetable['type'].fillna("Buero"))
-
-    # Parse GLZ and calculated numbers into integers
+     # Parse GLZ and calculated numbers into integers
     timetable['calculated_amount'] = timetable['calculated_amount'].apply(parseTimeTableAmount)
     timetable['glz_saldo'] = timetable['glz_saldo'].apply(parseTimeTableAmount)
 
@@ -297,6 +295,8 @@ def performeDataAnalysis(yearly_timetable):
         if pandas.notna(index_of_week_with_max_hours):  # Ensure it's not NaN
             week = hours_worked_each_week.loc[index_of_week_with_max_hours]  # Use .loc instead of .iloc
             st.write(f'🥇 Most Productive Week: If your weeks were competing in the Work Olympics, week {index_of_week_with_max_hours} would have won with {week['calculated_amount']} hours')
+
+            print(week)
         else:
             print("All your weeks are the same. No highlights here :-(")
 
